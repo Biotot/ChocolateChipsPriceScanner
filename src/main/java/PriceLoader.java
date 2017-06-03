@@ -1,6 +1,13 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.NLineInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -18,8 +25,36 @@ public class PriceLoader {
 
     public static void main(String[] args) throws Exception {
 
+        System.out.println("Loading Prices");
         //LoadStockPrices(true);
         //LoadStockPrices(false);
+        FileSystem aFS = FileSystem.get(new Configuration());
+
+        Path aOutputPath = new Path("/Chips/PricesOut");
+        if (aFS.exists(aOutputPath)) {
+            aFS.delete(aOutputPath, true);
+            System.out.println("Output folder removed");
+        }
+
+        System.setProperty("hadoop.home.dir", "/usr/local/hadoop");
+        Configuration conf = new Configuration();
+
+        Job job = Job.getInstance(conf, "Loading Prices");
+        job.setJarByClass(BruteController.class);
+
+        job.setMapperClass(Mappers.PriceSplitter.class);
+        job.setReducerClass(Mappers.StockResultCombination.class);
+        job.setNumReduceTasks(1);
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(IntWritable.class);
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        FileInputFormat.addInputPath(job, new Path("/Chips/Data/Raw"));
+        job.setInputFormatClass(StockSplitter.class);
+        FileOutputFormat.setOutputPath(job, new Path("/Chips/PricesOut"));
+        job.submit();
+        job.waitForCompletion(true);
 
     }
 
@@ -87,7 +122,7 @@ public class PriceLoader {
         }
 
 
-        GenStock.OutputToFile(tTicker+"_"+tType, aDataStart, aInterval);
+        GenStock.OutputToFile(tTicker+"_"+tType, aDataStart);
     }
 
     /*

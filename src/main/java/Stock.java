@@ -39,7 +39,8 @@ public class Stock {
     //https://chart.finance.yahoo.com//instrument/1.0/MU/chartdata;type=quote;range=15d/csv
     public void LoadRaw(String tType, String tStockName) throws IOException {
         BufferedReader aReader = null;
-        String aLoadURL = String.format("https://chart.finance.yahoo.com//instrument/1.0/%s/chartdata;type=quote;range=%s/csv", tStockName, tType);
+        //https://www.google.com/finance/getprices?i=60&p=1d&f=d,o,h,l,c,v&df=cpct&q=AMD
+        String aLoadURL = String.format("https://chart.finance.yahoo.com//instrument/1.0/%s/chartdata;type=quote;range=1d/csv", tStockName);
         System.out.println(aLoadURL);
         URL aAPI = new URL(aLoadURL);
         InputStream aInput = aAPI.openStream();
@@ -84,7 +85,6 @@ public class Stock {
 
     public void LoadProcessed(String tTicker, String tType) throws IOException, Exception
     {
-        //System.out.println("LOADING STOCK: " + tFileName);
         FileSystem aFS = FileSystem.get(new Configuration());
 
         Path aProcessedPath = new Path("/Chips/Data/Processed/" + tTicker + "_"+tType + ".txt");
@@ -108,7 +108,7 @@ public class Stock {
             }
             aReader.close();
 
-            if (aFile.size()>2)
+            if (aFile.size()>50)
             {
                 Prices = new StockSegment(true);
                 for (int x=0; x<aFile.size(); x++)
@@ -130,7 +130,7 @@ public class Stock {
         {
             System.out.println("FILE NOT FOUND: " + tTicker);
         }
-        if (Prices.Values.size()>0)
+        if (Prices.Values.size()>50)
         {
             Valid = true;
         }
@@ -140,7 +140,70 @@ public class Stock {
         }
     }
 
-    public void OutputToFile(String tFilePath, int tStartIndex, int tInterval) throws java.io.IOException
+    public void LoadProcessedArray(String tTicker, ArrayList<String> tFile) throws IOException, Exception {
+
+        int count = 0;
+
+        if (tFile.size() > 2) {
+            Prices = new StockSegment(true);
+            for (int x = 0; x < tFile.size(); x++) {
+                //Find the start of a day
+                if (tFile.get(x).length() > 0) {
+                    Prices.LoadFullMinute(tFile.get(x));
+                    if (Prices.Values.size() == 1) {
+                        Prices.Date = Prices.Values.get(0).Time;
+                        //System.out.println(aDay.Date);
+                    }
+
+                }
+            }
+
+        }
+        if (Prices.Values.size() > 0) {
+            Valid = true;
+        } else {
+            System.out.println("Stock data is insufficient");
+        }
+    }
+    public void LoadArray(String tTicker, String tDate, ArrayList<String> tData) throws IOException, Exception
+    {
+        //System.out.println("LOADING STOCK: " + tFileName);
+        FileSystem aFS = FileSystem.get(new Configuration());
+
+        Path aProcessedPath = new Path("/Chips/Data/Processed/" + tTicker + "_"+tDate + ".txt");
+        if (aFS.exists(aProcessedPath)) {
+            aFS.delete(aProcessedPath, true);
+            System.out.println("existing prices removed");
+        }
+        if (tData.size() > 180){
+            Prices = new StockSegment();
+            for (int x = 0; x < tData.size(); x++) {
+                //Find the start of a day
+                if (tData.get(x).split(",").length == 7) {
+                    //System.out.println(aFile.get(x));
+                    StockPrice aPrice = new StockPrice(tData.get(x));
+                    Prices.Values.add(aPrice);
+                }
+
+            }
+            if (Prices.Values.size()>100)
+            {
+                Valid = true;
+                //System.out.println("Size correct: " + Prices.Values.size());
+            }
+            else {
+                System.out.println("Size too small for stock: " + Prices.Values.size());
+            }
+            Prices.Process();
+        }
+        else
+        {
+            System.out.println("File length too short: " + tData.size());
+            Valid = false;
+        }
+    }
+
+    public void OutputToFile(String tFilePath, int tStartIndex) throws java.io.IOException
     {
 
         FileSystem aFS = FileSystem.get(new Configuration());
@@ -153,7 +216,7 @@ public class Stock {
         if (Valid)
         {
             //System.out.println("Writing");
-            aWriter.write(Prices.SaveString(tStartIndex, tInterval));
+            aWriter.write(Prices.SaveString(tStartIndex));
         }
         else
         {
@@ -242,7 +305,7 @@ class StockSegment {
 
     public void LoadFullMinute(String tFullInput)
     {
-        String[] aInputList = tFullInput.split(":");
+        String[] aInputList = tFullInput.split("~");
         if (aInputList.length==(1+(AverageIntervalList.length*2))) {
             Values.add(new StockPrice(aInputList[0]));
             for (int x=0; x<AverageIntervalList.length; x++)
@@ -253,46 +316,33 @@ class StockSegment {
         }
         else
         {
-            System.out.println("Loaded minute of wrong size");
+            System.out.println("Loaded minute of wrong size: " + aInputList.length + "\n" + tFullInput);
         }
     }
 
-    public String SaveString(int tStartIndex, int tInterval)
+    public String SaveString(int tStartIndex)
     {
         String aRet = "";
-        aRet += Values.get(0) + ":";
+        aRet += Values.get(0) + "~";
         for (int y=0; y<AverageIntervalList.length; y++)
         {
-            aRet += Averages.get(AverageIntervalList[y]).get(0) + ":";
-            aRet += PercentChanges.get(AverageIntervalList[y]).get(0) + ":";
+            aRet += Averages.get(AverageIntervalList[y]).get(0) + "~";
+            aRet += PercentChanges.get(AverageIntervalList[y]).get(0) + "~";
         }
         aRet += "\n";
 
-        for (int x=tStartIndex; x<Values.size(); x+=tInterval)
+        for (int x=tStartIndex; x<Values.size(); x++)
         {
-            aRet += Values.get(x) + ":";
+            aRet += Values.get(x) + "~";
             for (int y=0; y<AverageIntervalList.length; y++)
             {
-                aRet += Averages.get(AverageIntervalList[y]).get(x) + ":";
-                aRet += PercentChanges.get(AverageIntervalList[y]).get(x) + ":";
+                aRet += Averages.get(AverageIntervalList[y]).get(x) + "~";
+                aRet += PercentChanges.get(AverageIntervalList[y]).get(x) + "~";
             }
             aRet += "\n";
 
 
         }
-
-        if ((Values.size()-tStartIndex) % tInterval != 0)
-        {
-            aRet += Values.get(Values.size()-1) + ":";
-            for (int y=0; y<AverageIntervalList.length; y++)
-            {
-                aRet += Averages.get(AverageIntervalList[y]).get(Values.size()-1) + ":";
-                aRet += PercentChanges.get(AverageIntervalList[y]).get(Values.size()-1) + ":";
-            }
-            aRet += "\n";
-        }
-
-
         aRet += "\n";
         return aRet;
     }
@@ -315,23 +365,35 @@ class StockPrice {
 
     StockPrice(String tInput)
     {
+        //GOOG = COLUMNS=DATE,CLOSE,HIGH,LOW,OPEN,VOLUME
         //MinuteData = DATE,CLOSE,HIGH,LOW,OPEN,VOLUME
         //DailyData = Date,Open,High,Low,Close,Volume
         //Yahoo = Timestamp,close,high,low,open,volume
+        //eoddata = Symbol,Date,Open,High,Low,Close,Volume
         String[] aInputList = tInput.split(",");
-        if (aInputList.length==6) {
-            Time = aInputList[0];
-            Close = Double.parseDouble(aInputList[1]);
-            High = Double.parseDouble(aInputList[2]);
-            Low = Double.parseDouble(aInputList[3]);
-            Open = Double.parseDouble(aInputList[4]);
-            Volume = Double.parseDouble(aInputList[5]);
-        }
-        else
+        switch (aInputList.length)
         {
-            Time = "Default";
-            Close = Open = High = Low = Volume = FuturePrice = 0;
-            System.out.println("STOCK MINUTE DAY IS WRONG LENGTH: " + tInput);
+            case 6:
+                Time = aInputList[0];
+                Close = Double.parseDouble(aInputList[1]);
+                High = Double.parseDouble(aInputList[2]);
+                Low = Double.parseDouble(aInputList[3]);
+                Open = Double.parseDouble(aInputList[4]);
+                Volume = Double.parseDouble(aInputList[5]);
+                break;
+            case 7:
+                Time = aInputList[1];
+                Open = Double.parseDouble(aInputList[2]);
+                High = Double.parseDouble(aInputList[3]);
+                Low = Double.parseDouble(aInputList[4]);
+                Close = Double.parseDouble(aInputList[5]);
+                Volume = Double.parseDouble(aInputList[6]);
+                break;
+            default:
+                Time = "Default";
+                Close = Open = High = Low = Volume = FuturePrice = 0;
+                System.out.println("STOCK MINUTE DAY IS WRONG LENGTH: " + tInput);
+                break;
         }
     }
 

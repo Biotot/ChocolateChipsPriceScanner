@@ -215,6 +215,7 @@ public class JobContainer {
         System.setProperty("hadoop.home.dir", "/usr/local/hadoop");
         Configuration conf = new Configuration();
 
+        /*
         if (aFS.exists(new Path("/Chips/Flags/Debug")))
         {
             conf.setInt("mapreduce.input.lineinputformat.linespermap", 1);
@@ -223,40 +224,41 @@ public class JobContainer {
         {
             conf.setInt("mapreduce.input.lineinputformat.linespermap", 10);
         }
+        */
         Job job = Job.getInstance(conf, Type + "@" + PercentChanged);
         job.setJarByClass(BruteController.class);
 
-        if (Type.equals("Broker_1d"))
+        if (Type.equals("Broker_15"))
         {
-            job.setMapperClass(Mappers.Broker1d.class);
+            job.setMapperClass(Mappers.Broker15.class);
         }
-        else if (Type.equals("Broker_15d"))
+        else if (Type.equals("Broker_30"))
         {
-            job.setMapperClass(Mappers.Broker15d.class);
+            job.setMapperClass(Mappers.Broker30.class);
         }
-        else if (Type.equals("Broker_1y"))
+        else if (Type.equals("Broker_60"))
         {
-            job.setMapperClass(Mappers.Broker1y.class);
+            job.setMapperClass(Mappers.Broker60.class);
         }
-        else if (Type.equals("Broker_10y"))
+        else if (Type.equals("Broker_90"))
         {
-            job.setMapperClass(Mappers.Broker10y.class);
+            job.setMapperClass(Mappers.Broker90.class);
         }
-        else if (Type.equals("Rate_1d"))
+        else if (Type.equals("Rate_15"))
         {
-            job.setMapperClass(Mappers.Rate1d.class);
+            job.setMapperClass(Mappers.Rate15.class);
         }
-        else if (Type.equals("Rate_15d"))
+        else if (Type.equals("Rate_30d"))
         {
-            job.setMapperClass(Mappers.Rate15d.class);
+            job.setMapperClass(Mappers.Rate30.class);
         }
-        else if (Type.equals("Rate_1y"))
+        else if (Type.equals("Rate_60"))
         {
-            job.setMapperClass(Mappers.Rate1y.class);
+            job.setMapperClass(Mappers.Rate60.class);
         }
-        else if (Type.equals("Rate_10y"))
+        else if (Type.equals("Rate_90"))
         {
-            job.setMapperClass(Mappers.Rate10y.class);
+            job.setMapperClass(Mappers.Rate90.class);
         }
 
         job.setReducerClass(Mappers.BrokerCombination.class);
@@ -266,8 +268,8 @@ public class JobContainer {
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(DoubleWritable.class);
 
-        FileInputFormat.addInputPath(job, new Path("/Chips/StockList"));
-        job.setInputFormatClass(NLineInputFormat.class);
+        FileInputFormat.addInputPath(job, new Path("/Chips/Data/Processed"));
+        job.setInputFormatClass(StockSplitter.class);
         FileOutputFormat.setOutputPath(job, new Path("/Chips/"+Type+"Out"));
         job.submit();
 

@@ -40,10 +40,10 @@ public class BruteController {
 
         String aRunningStatus = "RUN";
         ArrayList<JobContainer> aTaskList = new ArrayList<JobContainer>();
-        aTaskList.add(new JobContainer("Broker_1d"));
-        aTaskList.add(new JobContainer("Broker_15d"));
-        aTaskList.add(new JobContainer("Broker_1y"));
-        aTaskList.add(new JobContainer("Broker_10y"));
+        //aTaskList.add(new JobContainer("Broker_15"));
+        aTaskList.add(new JobContainer("Broker_30"));
+        aTaskList.add(new JobContainer("Broker_60"));
+        aTaskList.add(new JobContainer("Broker_90"));
 
         FileSystem aFS = FileSystem.get(new Configuration());
         Path aRateConstant = new Path("/Chips/Flags/RateConstant");

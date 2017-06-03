@@ -125,7 +125,7 @@ public class Broker implements WritableComparable<Broker> {
     }
 
 
-    public double RunFull(Stock tStockTarget) {
+    public double RunFull(Stock tStockTarget, int tInterval) {
         double aRet = 0;
         double aBuyThreshhold = m_Key[0].get() * m_Key[1].get();
         int aBuyDays = 0;
@@ -133,13 +133,18 @@ public class Broker implements WritableComparable<Broker> {
         StockSegment aDay = tStockTarget.Prices;
         double aInvestment = 0;
         double aSellValue = 0;
-        for (int y = 1; y < aDay.Values.size() - 1; y++) {
+        for (int y = 1; y < aDay.Values.size() - tInterval - 1 ; y++) {
 
             boolean aBuy = Evaluate(aBuyThreshhold, aDay.PercentChanges, y);
             //THIS IS A BUY SIGNAL
             if (aBuy) {
                 aInvestment += aDay.Values.get(y).Close;
-                aSellValue += aDay.Values.get(y + 1).Close;
+                if (y+tInterval<aDay.Values.size())
+                {
+                    //this chunk should always trigger
+                    aSellValue += aDay.Values.get(y+tInterval).Close;
+                    //aSellValue += aDay.Values.get(aDay.Values.size()-1).Close;
+                }
             }
         }
 
